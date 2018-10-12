@@ -14,14 +14,14 @@ typedef struct MemoryMap {
 } MemoryMap;
 
 typedef struct PMFunctionTable {
-	void (*reboot)(void);
+	NO_RETURN void (*reboot)(void);
 	void (*print_str)(const char*);
 	const MemoryMap *(*get_memory_map)(void);
 } PMFunctionTable;
 
 static PMFunctionTable *pm_functions;
 
-void reboot(void) {
+NO_RETURN void reboot(void) {
 	pm_functions->reboot();
 }
 

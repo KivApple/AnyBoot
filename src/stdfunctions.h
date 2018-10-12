@@ -5,8 +5,10 @@
 #include <stdbool.h>
 #include <stdarg.h>
 
-void reboot(void);
-void puts(const char *string);
+#define NO_RETURN __attribute__ ((noreturn))
+
+NO_RETURN void reboot(void); // Must be implemented by platform
+void puts(const char *string); // Must be implemented by platform
 
 void main(void);
 
@@ -23,8 +25,8 @@ int strcmp(const char *s1, const char *s2);
 int strncmp(const char *s1, const char *s2, size_t count);
 char *strdup(const char *s);
 
-void *malloc(size_t count);
-void free(void *ptr);
+void *malloc(size_t count); // Must be implemented by platform
+void free(void *ptr); // Must be implemented by platform
 
 void panic(const char *message);
 
