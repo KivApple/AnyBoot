@@ -1,8 +1,8 @@
 include ../../commons.mk
 
 TARGET_OBJCOPY?=objcopy
-TARGET_LD?=$(HOST_CC)
-TARGET_CC?=$(HOST_CC)
+TARGET_LD?=clang
+TARGET_CC?=clang
 TARGET_CFLAGS?=-O2 -ggdb -Wall -Wpedantic -Werror
 TARGET_CFLAGS+=-m32 -ffreestanding -fno-pie -fno-exceptions -fno-stack-protector
 TARGET_LDFLAGS+=-Wl,-melf_i386 -lgcc -nostdlib
@@ -21,31 +21,31 @@ VPATH=$(sort $(dir $(BOOT_CSRC)))
 
 all: bootsector.bin boot.bin boot-install disk.img
 
-bootsector.bin: bootsector.asm
+bootsector.bin: bootsector.asm Makefile
 	$(FASM) bootsector.asm bootsector.bin
 
-boot.bin: boot.asm boot_main.bin
+boot.bin: boot.asm boot_main.bin Makefile
 	$(FASM) boot.asm boot.bin
 
-boot_main.elf: $(BOOT_OBJ) script.ld
-	$(TARGET_LD) $(TARGET_CFLAGS) -T script.ld -o boot_main.elf $(BOOT_OBJ) $(TARGET_LDFLAGS)
+boot_main.elf: $(BOOT_OBJ) script.ld Makefile
+	$(TARGET_LD) $(TARGET_CFLAGS) -Wl,-Tscript.ld -o boot_main.elf $(BOOT_OBJ) $(TARGET_LDFLAGS)
 
-boot_main.bin: boot_main.elf
+boot_main.bin: boot_main.elf Makefile
 	$(TARGET_OBJCOPY) -R .note -R .comment -R .interp -S -O binary boot_main.elf boot_main.bin
 
-startup.o: startup.asm
+startup.o: startup.asm Makefile
 	$(FASM) startup.asm startup.o
 
-$(BOOT_COBJ): %.o: %.c
+$(BOOT_COBJ): %.o: %.c Makefile
 	$(TARGET_CC) -c $(TARGET_CFLAGS) -MD -MF $@.deps -o $@ $<
 
-boot-install: boot-install.c bootsector_data.h
+boot-install: boot-install.c bootsector_data.h Makefile
 	$(HOST_CC) $(HOST_CFLAGS) -o boot-install boot-install.c
 
-bootsector_data.h: bootsector.bin ../../utils/bin2hex
+bootsector_data.h: bootsector.bin ../../utils/bin2hex Makefile
 	../../utils/bin2hex bootsector.bin bootsector_data.h
 
-disk.img: boot-install boot.bin
+disk.img: boot-install boot.bin Makefile
 	$(DD) if=/dev/zero of=disk.img bs=512 count=2880 status=none
 	./boot-install disk.img boot.bin
 

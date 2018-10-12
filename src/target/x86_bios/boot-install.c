@@ -15,7 +15,7 @@ static const char bootsector_data[] = {
 
 static void setup_boot_sector(char *buffer, uint64_t param_start_sector, uint16_t param_sector_count) {
 	for (size_t i = 0; i < SECTOR_SIZE; i++) {
-		if (i >= 0 && i < 3 || i >= 90 && i < 436 || i >= 510 && i < 512) {
+		if ((i >= 0 && i < 3) || (i >= 90 && i < 436) || (i >= 510 && i < 512)) {
 			buffer[i] = bootsector_data[i];
 		}
 	}
@@ -42,14 +42,14 @@ static void read_sector(FILE *device_file, uint64_t sector, char *buffer) {
 	fseek(device_file, sector * SECTOR_SIZE, SEEK_SET);
 	if (fread(buffer, SECTOR_SIZE, 1, device_file) != 1) {
 		memset(buffer, 0, SECTOR_SIZE);
-		fprintf(stderr, "Failed to read sector %llu\n", sector);
+		fprintf(stderr, "Failed to read sector %llu\n", (unsigned long long) sector);
 	}
 }
 
 static void write_sector(FILE *device_file, uint64_t sector, const char *buffer) {
 	fseek(device_file, sector * SECTOR_SIZE, SEEK_SET);
 	if (fwrite(buffer, SECTOR_SIZE, 1, device_file) != 1) {
-		fprintf(stderr, "Failed to write sector %llu\n", sector);
+		fprintf(stderr, "Failed to write sector %llu\n", (unsigned long long) sector);
 	}
 }
 
@@ -64,7 +64,6 @@ static long copy_sectors(FILE *device_file, FILE *input_file, uint64_t start_sec
 	uint64_t last_sector = start_sector + (bytes_count + SECTOR_SIZE - 1) / SECTOR_SIZE - 1;
 	for (uint64_t sector = start_sector; sector <= last_sector; sector++) {
 		char buffer[SECTOR_SIZE];
-		long offset = ftell(input_file);
 		if (sector == last_sector && bytes_count % SECTOR_SIZE) {
 			long count = fread(buffer, 1, SECTOR_SIZE, input_file);
 			memset(buffer + count, 0, SECTOR_SIZE - count);
@@ -78,7 +77,7 @@ static long copy_sectors(FILE *device_file, FILE *input_file, uint64_t start_sec
 
 int main(int argc, char *argv[]) {
 	if (argc != 3) {
-		fprintf(stderr, "Usage: %s disk.img boot.bin\n");
+		fprintf(stderr, "Usage: %s disk.img boot.bin\n", argv[0]);
 		return 1;
 	}
 	FILE *input_file = fopen(argv[2], "rb");
