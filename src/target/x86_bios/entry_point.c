@@ -13,10 +13,23 @@ typedef struct MemoryMap {
 	const MemoryMapEntry *entries;
 } MemoryMap;
 
+typedef struct DriveParameters {
+	uint8_t valid;
+	uint8_t drive_count;
+	uint8_t id;
+	uint8_t edd_support;
+	uint32_t spt;
+	uint32_t head_count;
+	uint32_t track_count;
+} DriveParameters;
+
 typedef struct PMFunctionTable {
 	NO_RETURN void (*reboot)(void);
-	void (*print_str)(const char*);
+	void (*print_str)(const char *s);
 	const MemoryMap *(*get_memory_map)(void);
+	uint8_t (*get_boot_drive_id)(void);
+	bool (*query_drive_parameters)(uint8_t id, DriveParameters *params);
+	bool (*read_sector)(const DriveParameters *params, uint64_t index, void *buffer);
 } PMFunctionTable;
 
 static PMFunctionTable *pm_functions;
@@ -37,5 +50,17 @@ void entry_point(PMFunctionTable *arg_pm_functions) {
 			mark_memory_as_free(mm->entries[i].base, mm->entries[i].length);
 		}
 	}
+	
+	DriveParameters params;
+	pm_functions->query_drive_parameters(pm_functions->get_boot_drive_id(), &params);
+	printf("valid=%u,id=0x%02x,drive_count=%u,edd_support=%u,spt=%u,head_count=%u,track_count=%u\r\n", 
+		   params.valid, params.id, params.drive_count, params.edd_support, params.spt, params.head_count, params.track_count);
+	uint8_t *buffer = malloc(512);
+	if (buffer) {
+		bool result = pm_functions->read_sector(&params, 0, buffer);
+		printf("%02x%02x (%i)\r\n", buffer[510], buffer[511], result);
+		free(buffer);
+	}
+	
 	main();
 }

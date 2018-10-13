@@ -291,6 +291,9 @@ pm_functions_table:
 	.reboot dd reboot32
 	.print_str dd print_str32
 	.get_memory_map dd get_memory_map32
+	.get_boot_drive_id dd get_boot_drive_id32
+	.query_drive_parameters dd query_drive_parameters32
+	.read_sector dd read_sector32
 ; Reboot from the protected mode
 align 16
 reboot32:
@@ -412,6 +415,165 @@ fetch_memory_map:
 .error:
 	call error
 	db "UNABLE TO QUERY MEMORY MAP FROM BIOS",13,10,0
+; Get boot drive id
+use32
+align 16
+get_boot_drive_id32:
+	movzx eax, [boot_disk_id]
+	ret
+; Query drive parameters
+use32
+align 16
+query_drive_parameters32:
+	push ebx esi edi ebp
+	xor eax, eax
+	mov edi, drive_parameters
+	mov ecx, drive_parameters.length / 4
+	rep stosd
+	mov edx, [esp + 20]
+	mov [call16.func], .query
+	call call16
+	mov esi, drive_parameters
+	mov edi, [esp + 24]
+	mov ecx, drive_parameters.length / 4
+	rep movsd
+	pop ebp edi esi ebx
+	movzx eax, [drive_parameters.valid]
+	ret
+use16
+align 16
+.query:
+	mov [drive_parameters.id], dl
+	mov ah, 0x41
+	mov bx, 0x55AA
+	int 0x13
+	jc .no_edd
+	cmp bx, 0xAA55
+	jne .no_edd
+	mov [drive_parameters.edd_support], 1
+.no_edd:
+	mov ah, 0x08
+	push es
+	xor di, di
+	int 0x13
+	pop es
+	jc .exit
+	inc dh
+	mov [drive_parameters.drive_count], dl
+	mov dl, dh
+	and edx, 0xFF
+	mov [drive_parameters.head_count], edx
+	mov al, ch
+	mov ah, cl
+	shr ah, 6
+	inc ax
+	movzx eax, ax
+	mov [drive_parameters.track_count], eax
+	and ecx, 0x3F
+	mov [drive_parameters.spt], ecx
+	mov [drive_parameters.valid], 1
+.exit:
+	ret
+; Read sector from protected mode
+use32
+align 16
+read_sector32:
+	push ebx esi edi ebp
+	mov ebp, esp
+	mov esi, [ebp + 20]
+	mov edi, drive_parameters
+	mov ecx, drive_parameters.length / 4
+	rep movsd
+	sub esp, 512
+	mov edi, esp
+	mov eax, [ebp + 24]
+	mov edx, [ebp + 28]
+	mov [call16.func], .read
+	call call16
+	mov esi, esp
+	mov edi, [ebp + 32]
+	mov ecx, 512 / 4
+	rep movsd
+	mov esp, ebp
+	pop ebp edi esi ebx
+	ret
+use16
+align 16
+.read:
+	cmp [drive_parameters.valid], 0
+	je .error
+	cmp [drive_parameters.edd_support], 0
+	jne .use_edd
+	test edx, edx
+	jnz .error
+	cmp [drive_parameters.spt], edx
+	je .error
+	div [drive_parameters.spt]
+	cmp edx, 0x3F
+	jae .error
+	mov cl, dl
+	inc cl
+	xor edx, edx
+	cmp [drive_parameters.head_count], edx
+	je .error
+	div [drive_parameters.head_count]
+	cmp edx, 0xFF
+	ja .error
+	mov dh, dl
+	cmp eax, 0x3FF
+	ja .error
+	cmp eax, [drive_parameters.track_count]
+	jae .error
+	mov ch, al
+	shl ah, 6
+	or cl, ah
+	mov dl, [drive_parameters.id]
+	mov bx, di
+	mov si, 3
+@@:
+	mov ax, 0x0201
+	int 0x13
+	jnc .ok
+	xor ah, ah
+	int 0x13
+	dec si
+	jnz @b
+.error:
+	xor eax, eax
+	ret
+.use_edd:
+	mov dword[dap.sector], eax
+	mov dword[dap.sector + 4], edx
+	mov [dap.segment], 0
+	mov [dap.offset], di
+	mov ah, 0x42
+	mov dl, [drive_parameters.id]
+	mov si, dap
+	int 0x13
+	jc .error
+.ok:
+	mov eax, 1
+	ret
+; Drive parameters for disk functions
+align 16
+drive_parameters:
+	.valid db ?
+	.drive_count db ?
+	.id db ?
+	.edd_support db ?
+	.spt dd ?
+	.head_count dd ?
+	.track_count dd ?
+	.length = $ - drive_parameters
+; Disk address packet
+align 16
+dap:
+	.size db 16
+	.zero db 0
+	.count dw 1
+	.offset dw ?
+	.segment dw ?
+	.sector dq ?
 ; Place for memory map
 align 16
 memory_map:
