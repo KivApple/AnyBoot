@@ -19,6 +19,7 @@ struct VFSNode {
 	VFSNode *first_child;
 	char *name;
 	VFSStream *(*open)(VFSNode *node);
+	VFSStream *(*open_file)(VFSNode *node, const char *path);
 	void *driver_data;
 };
 
@@ -27,10 +28,13 @@ extern VFSNode vfs_root;
 VFSNode *vfs_node_create(VFSNode *parent, const char *name, void *driver_data);
 VFSNode *vfs_node_create_link(VFSNode *parent, const char *name, VFSNode *node);
 VFSNode *vfs_node_find_child(VFSNode *parent, const char *name);
+VFSNode *vfs_node_find_by_path(const char *path, const char **rest);
 
 VFSStream *vfs_node_open(VFSNode *node);
+VFSStream *vfs_node_open_file(VFSNode *node, const char *path);
 
 VFSStream *vfs_stream_create(VFSNode *node, void *driver_data);
+VFSStream *vfs_stream_open(const char *path);
 void vfs_stream_close(VFSStream *stream);
 size_t vfs_stream_read(VFSStream *stream, void *buffer, size_t count);
 void vfs_stream_seek(VFSStream *stream, VFSStreamOffset offset);

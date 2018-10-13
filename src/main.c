@@ -7,7 +7,7 @@ static void dump_vfs(VFSNode *parent, int level) {
 		for (int i = 0; i < level; i++) {
 			puts("  ");
 		}
-		printf("%s\r\n", child->name);
+		printf("/%s\r\n", child->name);
 		dump_vfs(child, level + 1);
 		child = child->next;
 	}
@@ -17,7 +17,7 @@ int main(void) {
 	printf("%zu\r\n", get_free_memory_size());
 	//printf("Hello world!\r\n");
 	dump_vfs(&vfs_root, 0);
-	VFSStream *stream = vfs_node_open(vfs_node_find_child(NULL, "boot_drive"));
+	VFSStream *stream = vfs_stream_open("/boot_drive");
 	if (stream) {
 		uint8_t buffer[512];
 		vfs_stream_seek(stream, 0 * 512);
