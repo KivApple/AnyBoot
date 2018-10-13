@@ -15,8 +15,20 @@ void *malloc(size_t count) {
 	return NULL;
 }
 
+void *calloc(size_t size, size_t count) {
+	void *ptr = malloc(size * count);
+	if (ptr) {
+		memset(ptr, 0, size * count);
+	}
+	return ptr;
+}
+
 void free(void *ptr) {
 	st->BootServices->FreePool(ptr);
+}
+
+size_t get_free_memory_size(void) {
+	return 0; // TODO
 }
 
 NO_RETURN void reboot(void) {

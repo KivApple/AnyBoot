@@ -10,7 +10,7 @@ FASM?=fasm
 
 QEMU_X86_64?=qemu-system-x86_64
 
-BOOT_CSRC+=../../main.c ../../stdfunctions.c 
+BOOT_CSRC+=../../main.c ../../stdfunctions.c ../../vfs.c
 
 define NEWLINE
 

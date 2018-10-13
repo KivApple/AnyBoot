@@ -1,4 +1,5 @@
 #include "stdfunctions.h"
+#include "vfs.h"
 #include "mm.h"
 
 typedef struct MemoryMapEntry {
@@ -32,6 +33,14 @@ typedef struct PMFunctionTable {
 	bool (*read_sector)(const DriveParameters *params, uint64_t index, void *buffer);
 } PMFunctionTable;
 
+typedef struct DiskDriverData {
+	DriveParameters params;
+} DiskDriverData;
+
+typedef struct DiskStreamDriverData {
+	VFSStreamOffset offset;
+} DiskStreamDriverData;
+
 static PMFunctionTable *pm_functions;
 
 NO_RETURN void reboot(void) {
@@ -51,9 +60,64 @@ static void init_mm(void) {
 	}
 }
 
+static void bios_drive_close(VFSStream *stream) {
+	free(stream->driver_data);
+}
+
+static size_t bios_drive_read(VFSStream *stream, void *buffer, size_t count) {
+	DiskStreamDriverData *data = (DiskStreamDriverData*) stream->driver_data;
+	DiskDriverData *node_data = (DiskDriverData*) stream->node->driver_data;
+	size_t i;
+	for (i = 0; i < count; i += 512) {
+		if (!pm_functions->read_sector(&node_data->params, data->offset / 512, (char*) buffer + i)) {
+			break;
+		}
+		data->offset += 512;
+	}
+	return i;
+}
+
+static void bios_drive_seek(VFSStream *stream, VFSStreamOffset offset) {
+	DiskStreamDriverData *data = (DiskStreamDriverData*) stream->driver_data;
+	data->offset = offset;
+}
+
+static VFSStream *bios_drive_open(VFSNode *node) {
+	DiskStreamDriverData *data = malloc(sizeof(DiskStreamDriverData));
+	if (data) {
+		data->offset = 0;
+		VFSStream *stream = vfs_stream_create(node, data);
+		if (stream) {
+			stream->close = bios_drive_close;
+			stream->read = bios_drive_read;
+			stream->seek = bios_drive_seek;
+			return stream;
+		}
+		free(data);
+	}
+	return NULL;
+}
+
 static void process_detected_drive(const DriveParameters *params) {
-	printf("valid=%u,id=0x%02x,drive_count=%u,edd_support=%u,spt=%u,head_count=%u,track_count=%u\r\n", 
-		   params->valid, params->id, params->drive_count, params->edd_support, params->spt, params->head_count, params->track_count);
+	char buffer[16];
+	if (params->id & 0x80) {
+		snprintf(buffer, sizeof(buffer), "hd%u", params->id & ~0x80);
+	} else {
+		snprintf(buffer, sizeof(buffer), "fd%u", params->id);
+	}
+	DiskDriverData *data = malloc(sizeof(DiskDriverData));
+	if (data) {
+		memcpy(&data->params, params, sizeof(*params));
+		VFSNode *node = vfs_node_create(NULL, buffer, data);
+		if (node) {
+			node->open = bios_drive_open;
+			if (params->id == pm_functions->get_boot_drive_id()) {
+				vfs_node_create_link(NULL, "boot_drive", node);
+			}
+		} else {
+			free(data);
+		}
+	}
 }
 
 static void detect_drives_range(uint8_t first_id) {
@@ -76,15 +140,5 @@ void entry_point(PMFunctionTable *arg_pm_functions) {
 	pm_functions = arg_pm_functions;
 	init_mm();
 	detect_drives();
-	
-	DriveParameters params;
-	pm_functions->query_drive_parameters(pm_functions->get_boot_drive_id(), &params);
-	uint8_t *buffer = malloc(512);
-	if (buffer) {
-		bool result = pm_functions->read_sector(&params, 0, buffer);
-		printf("%02x%02x (%i)\r\n", buffer[510], buffer[511], result);
-		free(buffer);
-	}
-	
 	main();
 }

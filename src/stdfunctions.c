@@ -65,7 +65,7 @@ char *strchr(const char *s, int c) {
 
 int strcmp(const char *s1, const char *s2) {
 	do {
-		int diff = *s1 - *s2;
+		int diff = *(s1++) - *(s2++);
 		if (diff != 0) {
 			return diff;
 		}
@@ -76,7 +76,7 @@ int strcmp(const char *s1, const char *s2) {
 int strncmp(const char *s1, const char *s2, size_t count) {
 	do {
 		if (count-- == 0) break;
-		int diff = *s1 - *s2;
+		int diff = *(s1++) - *(s2++);
 		if (diff != 0) {
 			return diff;
 		}

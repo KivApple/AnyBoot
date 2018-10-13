@@ -14,6 +14,7 @@ struct MemoryBlock {
 };
 
 static MemoryBlock *first_free_memory_block = NULL;
+static size_t free_memory_size = 0;
 
 void mark_memory_as_free(uint64_t base, uint64_t length) {
 #ifndef __x86_64__  
@@ -35,6 +36,8 @@ void mark_memory_as_free(uint64_t base, uint64_t length) {
 
 void *malloc(size_t count) {
 	count = (count + MEMORY_BLOCK_BASE_SIZE - 1) & ~(MEMORY_BLOCK_BASE_SIZE - 1);
+	if (!count) return NULL;
+	free_memory_size -= count;
 	MemoryBlock *block = first_free_memory_block;
 	if (block) {
 		do {
@@ -61,12 +64,22 @@ void *malloc(size_t count) {
 				new_block->next = NULL;
 				new_block->prev = NULL;
 				new_block->size = count;
+				free_memory_size -= sizeof(MemoryBlock);
 				return new_block + 1;
 			}
 			block = block->next;
 		} while (block != first_free_memory_block);
 	}
+	free_memory_size += count;
 	return NULL;
+}
+
+void *calloc(size_t size, size_t count) {
+	void *ptr = malloc(size * count);
+	if (ptr) {
+		memset(ptr, 0, size * count);
+	}
+	return ptr;
 }
 
 void free(void *ptr) {
@@ -78,6 +91,7 @@ void free(void *ptr) {
 	if (block->next || block->prev) {
 		panic("PANIC: Double free\r\n");
 	}
+	free_memory_size += block->size;
 	if (!first_free_memory_block) {
 		block->next = block;
 		block->prev = block;
@@ -92,11 +106,16 @@ void free(void *ptr) {
 			cur_block->size += sizeof(MemoryBlock) + block->size;
 			block->magic1 = 0;
 			block->magic2 = 0;
+			free_memory_size += sizeof(MemoryBlock);
 			cur_block_end = (MemoryBlock*) ((char*) (cur_block + 1) + cur_block->size);
 			if (cur_block->next == cur_block_end) {
-				cur_block->size += sizeof(MemoryBlock) + cur_block->next->size;
-				cur_block->next = cur_block->next->next;
+				block = cur_block->next;
+				cur_block->size += sizeof(MemoryBlock) + block->size;
+				cur_block->next = block->next;
 				cur_block->next->prev = cur_block;
+				block->magic1 = 0;
+				block->magic2 = 0;
+				free_memory_size += sizeof(MemoryBlock);
 			}
 			return;
 		} else if (cur_block == block_end) {
@@ -110,6 +129,7 @@ void free(void *ptr) {
 			}
 			cur_block->magic1 = 0;
 			cur_block->magic2 = 0;
+			free_memory_size += sizeof(MemoryBlock);
 			return;
 		} else if (cur_block > block_end) {
 			break;
@@ -122,5 +142,21 @@ void free(void *ptr) {
 	block->prev->next = block;
 	if (block_end < first_free_memory_block) {
 		first_free_memory_block = block;
+	}
+}
+
+size_t get_free_memory_size(void) {
+	return free_memory_size;
+}
+
+void debug_dump_heap(void) {
+	MemoryBlock *block = first_free_memory_block;
+	if (block) {
+		while (block->magic1 == MEMORY_BLOCK_MAGIC) {
+			printf("base=%p, size=%zu, used=%i\r\n", block, block->size, block->next == NULL);
+			block = (MemoryBlock*) ((char*) (block + 1) + block->size);
+		}
+	} else {
+		puts("Heap is empty\r\n");
 	}
 }

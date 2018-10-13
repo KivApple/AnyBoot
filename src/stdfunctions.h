@@ -26,7 +26,10 @@ int strncmp(const char *s1, const char *s2, size_t count);
 char *strdup(const char *s);
 
 void *malloc(size_t count); // Must be implemented by platform
+void *calloc(size_t size, size_t count); // Must be implemented by platform
 void free(void *ptr); // Must be implemented by platform
+
+size_t get_free_memory_size(void); // Must be implemented by platform
 
 void panic(const char *message);
 
