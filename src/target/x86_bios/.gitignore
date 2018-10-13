@@ -5,3 +5,8 @@
 *.elf
 bootsector_data.h
 boot-install
+project.creator
+project.creator.user
+project.files
+project.includes
+project.config

@@ -18,7 +18,7 @@ TARGET_CFLAGS+=$(addprefix -I,$(INCLUDE_DIRS))
 
 VPATH=$(sort $(dir $(BOOT_CSRC)))
 
-all: bootx64.efi boot
+all: bootx64.efi boot_disk
 
 bootx64.efi: $(BOOT_OBJ) Makefile
 	$(TARGET_LD) $(TARGET_LDFLAGS) -entry:efi_main $(BOOT_OBJ) -out:$@
@@ -27,16 +27,23 @@ bootx64.efi: $(BOOT_OBJ) Makefile
 $(BOOT_COBJ): %.o: %.c Makefile
 	$(TARGET_CC) -c $(TARGET_CFLAGS) -MD -MF $@.deps -o $@ $<
 
-boot: bootx64.efi
-	$(MKDIR_P) boot/EFI/BOOT
-	$(CP_RV) bootx64.efi boot/EFI/BOOT/BOOTX64.EFI
+boot_disk: bootx64.efi
+	$(MKDIR_P) boot_disk/EFI/BOOT
+	$(CP_RV) bootx64.efi boot_disk/EFI/BOOT/BOOTX64.EFI
 
-test: boot
-	qemu-system-x86_64 -bios /usr/share/ovmf/x64/OVMF_CODE.fd -net none -drive format=raw,file=fat:rw:boot
+test: boot_disk
+	$(QEMU_X86_64) -bios /usr/share/ovmf/x64/OVMF_CODE.fd -net none -drive format=raw,file=fat:rw:boot_disk
+
+qtcreator_project:
+	$(RM_RFV) project.files project.includes project.config
+	echo "" > project.creator
+	$(foreach f,$(BOOT_CSRC),echo $(f) >> project.files;)
+	$(foreach f,$(INCLUDE_DIRS),echo $(f) >> project.includes;)
+	$(TARGET_CC) -dM -E - < /dev/null > project.config
 
 clean:
 	$(RM_RFV) *.o *.deps *.efi boot
 
 -include *.deps
 
-.PHONY: all clean boot
+.PHONY: all clean boot_disk

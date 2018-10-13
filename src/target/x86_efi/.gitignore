@@ -2,3 +2,10 @@
 *.EFI
 *.o
 *.deps
+*.lib
+boot_disk
+project.creator
+project.creator.user
+project.files
+project.includes
+project.config

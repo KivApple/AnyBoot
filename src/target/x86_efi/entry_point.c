@@ -31,15 +31,15 @@ NO_RETURN void reboot(void) {
 void puts(const char *s) {
 	size_t len = strlen(s);
 	if (len < 256) {
-		wchar_t buffer[256];
+		char16_t buffer[256];
 		for (size_t i = 0; i <= len; i++) {
-			buffer[i] = s[i];
+			buffer[i] = (char16_t) s[i];
 		}
 		st->ConOut->OutputString(st->ConOut, buffer);
 	} else {
-		wchar_t *buffer = malloc((len + 1) * sizeof(wchar_t));
+		char16_t *buffer = malloc((len + 1) * sizeof(wchar_t));
 		for (size_t i = 0; i <= len; i++) {
-			buffer[i] = s[i];
+			buffer[i] = (char16_t) s[i];
 		}
 		st->ConOut->OutputString(st->ConOut, buffer);
 		free(buffer);

@@ -10,7 +10,7 @@
 NO_RETURN void reboot(void); // Must be implemented by platform
 void puts(const char *string); // Must be implemented by platform
 
-void main(void);
+int main(void);
 
 void *memset(void *dst, int c, size_t count);
 void *memcpy(void *dst, const void *src, size_t count);

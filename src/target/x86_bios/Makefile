@@ -50,11 +50,18 @@ disk.img: boot-install boot.bin Makefile
 	./boot-install disk.img boot.bin
 
 test: disk.img
-	qemu-system-x86_64 $<
+	$(QEMU_X86_64) $<
+
+qtcreator_project:
+	$(RM_RFV) project.files project.includes project.config
+	echo "" > project.creator
+	$(foreach f,$(BOOT_CSRC),echo $(f) >> project.files;)
+	$(foreach f,$(INCLUDE_DIRS),echo $(f) >> project.includes;)
+	$(TARGET_CC) -dM -E - < /dev/null > project.config
 
 clean:
 	$(RM_RFV) bootsector.bin boot.bin boot_main.elf boot_main.bin *.o bootsector_data.h boot-install disk.img *.deps
 
 -include *.deps
 
-.PHONY: all clean
+.PHONY: all clean qtcreator_project
