@@ -21,6 +21,7 @@ struct VFSNode {
 	VFSStream *(*open)(VFSNode *node);
 	VFSStream *(*open_file)(VFSNode *node, const char *path);
 	void *driver_data;
+	void *fs_driver_data;
 };
 
 extern VFSNode vfs_root;
