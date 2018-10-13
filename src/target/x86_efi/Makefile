@@ -39,7 +39,7 @@ qtcreator_project:
 	echo "" > project.creator
 	$(foreach f,$(BOOT_CSRC),echo $(f) >> project.files;)
 	$(foreach f,$(INCLUDE_DIRS),echo $(f) >> project.includes;)
-	$(TARGET_CC) -dM -E - < /dev/null > project.config
+	$(TARGET_CC) $(TARGET_CFLAGS) -dM -E - < /dev/null > project.config
 
 clean:
 	$(RM_RFV) *.o *.deps *.efi boot
